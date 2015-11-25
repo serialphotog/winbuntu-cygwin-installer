@@ -1,0 +1,47 @@
+
+# Be 8 bit clean.
+set input-meta on
+set output-meta on
+set convert-meta off
+
+# adds punctuation as word delimiters
+set bind-tty-special-chars off
+# try to enable the application keypad when it is called.  Some systems
+# need this to enable the arrow keys.
+set enable-keypad on
+# do not bell on tab-completion
+set bell-style none
+# expand symlinked directories/
+set mark-symlinked-directories on
+# Show all completions as soon as I press tab, even if there's more than one
+set show-all-if-ambiguous on
+# on menu-complete, first display the common prefix,
+# then cycle through the options when hitting TAB
+set menu-complete-display-prefix on
+# don't ask to display all items
+set completion-query-items -1
+# don't page completion options
+set page-completions off
+# classify like ls -F
+set visible-stats on
+# slightly broken for ln=target
+set colored-stats on
+# do not insert characters from completion that match characters that follow the cursor
+set skip-completed-text on
+
+"\C-i": menu-complete
+
+$if mode=vi
+
+    set show-mode-in-prompt on
+
+    #set keymap vi-command
+    # vi command mode mappings:
+    
+    set keymap vi-insert
+    # vi insert mode mappings:
+    "\C-l": clear-screen
+    "\C-k": kill-line
+
+$endif
+

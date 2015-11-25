@@ -1,0 +1,196 @@
+#!/bin/bash
+
+CYGEXE=setup-x86_64.exe
+EXEURL=http://cygwin.com/$CYGEXE
+MIRROR=http://cygwin.mirror.constant.com/
+PORTS_MIRROR=http://sourceware.mirrors.tds.net/pub/sourceware.org/cygwinports/
+PORTS_GPG=http://cygwinports.org/ports.gpg
+LUX_MIRROR=http://sirius.starlig.ht
+LUX_GPG=http://sirius.starlig.ht/sirius.gpg
+CACHE=/var/cache/lx
+
+if [ -e /etc/lxrc ]; then
+    . /etc/lxrc
+fi
+
+function show_usage() {
+    echo "Usage:  lx [options]"
+    echo -e "\n lux package manager\n"
+    echo "options:"
+    echo "   -h | --help          this help message"
+    echo "   -A | --admin         run as administrator"
+    echo "   -w | --wait          wait for setup to finish"
+    echo "   -u | --upgrade       also upgrade installed packages"
+    echo "   -M | --manager       open cygwin package manager"
+    echo "   -l | --list          list installed packages"
+    echo "   -i | --install       install specified packages separated by commas"
+    echo "   -r | --remove        remove specified packages separated by commas"
+    echo "   -R | --remove-all    remove package and dependencies orphaned by package"
+    echo "   -c | --clean         clean downloaded package cache"
+    echo "   -s | --search        search available packages using regex"
+    echo "   -d | --dependencies  get the depenendencies for a package"
+    echo "   -m | --missing       list the missing dependencies for a package"
+    echo "   -D | --recurse       get the depenendencies for a package recursively"
+    echo "   -t | --top           get top-level (orphaned) packages"
+    echo -e "\nexample:"
+    echo "   $0 -i tmux -r screen -u       install tmux, remove screen and update existing"
+}
+
+#setup cache
+mkdir -p $CACHE/cache
+cd $CACHE
+
+if [ ! -e "$CACHE/installed.lst" ] || [ "/etc/setup/installed.db" -nt "$CACHE/installed.lst" ]; then
+    awk -F\  '{print $1}' /etc/setup/installed.db | grep -v INSTALLED.DB > $CACHE/installed.lst
+    rm -f "$CACHE/setup.db"
+    rm -f "$CACHE/installed.db"
+    rm -f "$CACHE/base.lst"
+    setup_tmp=$(mktemp /tmp/lx.XXXXXX)
+    lynx -source $MIRROR/x86_64/setup.bz2 | bunzip2 > $setup_tmp
+    lynx -source $PORTS_MIRROR/x86_64/setup.bz2 | bunzip2 >> $setup_tmp
+    lynx -source $LUX_MIRROR/x86_64/setup.bz2 | bunzip2 >> $setup_tmp
+    grep -ve '^install:\|^source:' $setup_tmp | \
+       sed 's/^sdesc:/summary:\n\t/' | \
+       sed 's/^ldesc:/description:\n\t/' > $CACHE/setup.db
+    rm -f $setup_tmp
+	dep_re=$(grep -v INSTALLED.DB /etc/setup/installed.db | awk -F\  '{x=$2;sub(/\.tar.*$/,"",x);sub($1"-","^"$1"\\n.*\\nversion:\\s",x);print x}'  | paste -sd '|')
+    awk "BEGIN { RS=\"\n@ \" } /$dep_re/{print \"\n@ \"\$0}" $CACHE/setup.db > $CACHE/installed.db
+    unset versions
+    awk "BEGIN { RS=\"\n@ \" } /category:.*\sBase/{print \"\n@ \"\$0}" $CACHE/installed.db | grep @ | sed 's/@ //' > $CACHE/base.lst
+fi
+
+function log() {
+    echo -e $1 >&2
+}
+
+function get_pkg() {
+    awk "BEGIN { IGNORECASE=$3; RS=\"\n@ \" } /$1/{ print \"\n@ \"\$0}" $CACHE/$2.db
+}
+
+function pkg_search() {
+    get_pkg "$1" setup $2
+}
+
+function pkg_search_inst() {
+    get_pkg "$1" installed $2
+}
+
+function get_deps() {
+    versions=$(pkg_search "^$1\\n" 0 | grep "^version:\s" | awk -F:\  '{print $2}' | sort -r)
+    for ver in $versions; do
+        if grep "$1-$ver" /etc/setup/installed.db >/dev/null; then
+            version=$ver
+            break;
+        fi
+    done
+    dep_tmp=$(mktemp /tmp/lx.XXXXXX)
+    pkg_search "^$1\\n.*version:\s$version" 0 | grep "^requires:\s" -m 1 | awk -F:\  '{print $2}' | sed 's/\s\+/\n/g' | sort > $dep_tmp
+    sort $dep_tmp $CACHE/base.lst | uniq -d | sort - $dep_tmp | uniq -u
+    rm $dep_tmp
+}
+
+function r_get_deps() {
+    NEW="$1 $2"
+    for dep in $(get_deps "$1"); do
+        if [[ " $NEW " != *" $dep "* ]]; then
+            NEW=$(r_get_deps $dep "$NEW")
+        fi
+    done
+    echo $NEW
+}
+
+function get_orphans() {
+    installed_db=$(cat $CACHE/installed.lst)
+    search_re="requires:.*\\s${installed_db//[[:space:]]/\\s*\\n*|requires:.*\\s}\\s*\\n*"
+    pkg_search_inst "$search_re" 0 | awk '/^requires:/{x=$0;sub(/^requires:\s*/,"",x);gsub(/\s/,"\n",x);print x}' | \
+        sort $CACHE/installed.lst $CACHE/base.lst - | uniq -u
+}
+
+
+ARGS=$@
+if [ -z "$ARGS" ]; then
+    echo -e "\e[31merror: arguments required\n\e[m" >&2
+    show_usage >&2
+    exit 1
+fi
+
+OPTS=`getopt -o Awi:ur:R:lMchs:d:D:tm: -l admin,wait,install:,updgrade,remove:,remove-all:,list,manager,clean,help,search,dependencies:,recurse:,top,missing: -n 'lx' -- "$@"`
+[ $? != 0 ] && exit 1
+eval set -- "$OPTS"
+
+ADMIN="-B"
+
+while true; do
+    case "$1" in
+        -h|--help)
+            show_usage
+            exit 0;;
+        -M|--manager)
+            MANAGER="-M"
+            shift;;
+        -w|--wait)
+            WAIT="-W"
+            CYGWAIT="--wait"
+            shift;;
+        -A|--admin)
+            ADMIN=""
+            shift;;
+        -s|--search)
+            get_pkg "^\\S*$2\\S*|summary:.*$2.*description:|description:.*$2.*category:" setup 1
+            exit 0;;
+        -d|--dependencies)
+            get_deps "$2"
+            exit 0;;
+        -D|--recurse)
+	    r_get_deps "$2" | sed 's/\s\+/\n/g' | sort | uniq 
+            exit 0;;
+        -m|--missing)
+	    missing_tmp=$(mktemp /tmp/lx.XXXXXX)
+            r_get_deps "$2" | sed 's/\s\+/\n/g' | grep -v "^$2$" > $missing_tmp
+            sort $missing_tmp $CACHE/installed.lst | uniq -d | sort - $missing_tmp | sort | uniq -u
+            rm $missing_tmp
+            exit 0;;
+        -t|--top)
+            get_orphans
+            exit 0;;
+        -i|--install)
+            INSTALL="-P $2"
+            shift 2;;
+        -u|--upgrade)
+            UPGRADE="-g"
+            shift;;
+        -r|--remove)
+            REMOVE="-x $2"
+            shift 2;;
+        -R|--remove-all)
+            REMOVE="-x "$(r_get_deps "$2" | sed 's/\s\+/\n/g' | 
+                sort | paste -sd ',')
+            shift 2;;
+        -l|--list)
+            cat $CACHE/installed.lst
+            exit 0;;
+        -c|--clean)
+            find $CACHE/cache -type d -name 'release' | xargs rm -rfv
+            exit 0;;
+        --) 
+            shift; break;;
+        *) 
+            echo "\e[31mInternal error!\e[m"
+            exit 1;;
+    esac
+done
+if [ "_$@" != "_" ]; then
+    echo -e "\e[31merror: extra arguments: $@\n\e[m" >&2
+    show_usage >&2
+    exit 1
+fi
+# download setup.exe (if newer)
+if [ -e "/bin/wget" ]; then
+    wget -nv -N $EXEURL
+else
+    lynx -source $EXEURL > $CYGEXE
+fi
+chmod +x $CYGEXE
+
+cygstart $CYGWAIT -- $CYGEXE -s $LUX_MIRROR -s $MIRROR -s $PORTS_MIRROR -K $LUX_GPG -K $PORTS_GPG -q -d -l $(cygpath -w $CACHE/cache) -R $(cygpath -w /) $WAIT $ADMIN $INSTALL $UPGRADE $REMOVE $MANAGER
+

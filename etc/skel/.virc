@@ -1,0 +1,5 @@
+
+" allow arrows in vi
+map <UP> k
+map <DOWN> j
+

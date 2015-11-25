@@ -1,0 +1,16 @@
+#!/bin/bash
+
+function usage() {
+    echo -e "Usage: sudo program [args...]\n" >&2
+    echo -e "Activates UAC to elevate privileges\n" >&2
+}
+
+if [ $# -eq 0 ]; then
+    usage
+    exit 1
+fi
+
+prog="$1"
+shift
+cygstart $background --action=runas -- "$(which $prog)" "$@"
+

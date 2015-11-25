@@ -1,0 +1,31 @@
+[core]
+	editor = nano
+	filemode = true
+	autocrlf = false
+[credential]
+	helper = wincred
+[push]
+	default = current
+[help]
+	autocorrect = 30
+	format = web
+[merge]
+	conflictstyle = diff3
+[mergetool]
+	prompt = false
+	keepBackup = false
+[difftool]
+	prompt = false
+[color]
+	ui = auto
+[color "branch"]
+	remote = red bold
+	current = green bold
+	local = yellow bold
+[color "status"]
+	added = yellow bold
+	changed = red bold
+	untracked = red
+	header = black bold
+	branch = green bold
+
