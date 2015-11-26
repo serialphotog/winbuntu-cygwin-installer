@@ -23,6 +23,7 @@ function show_usage() {
     echo "   -u | --upgrade       also upgrade installed packages"
     echo "   -M | --manager       open cygwin package manager"
     echo "   -l | --list          list installed packages"
+    echo "   -L | --list-owned    list files installed by package"
     echo "   -i | --install       install specified packages separated by commas"
     echo "   -r | --remove        remove specified packages separated by commas"
     echo "   -R | --remove-all    remove package and dependencies orphaned by package"
@@ -114,7 +115,7 @@ if [ -z "$ARGS" ]; then
     exit 1
 fi
 
-OPTS=`getopt -o Awi:ur:R:lMchs:d:D:tm: -l admin,wait,install:,updgrade,remove:,remove-all:,list,manager,clean,help,search,dependencies:,recurse:,top,missing: -n 'lx' -- "$@"`
+OPTS=`getopt -o Awi:ur:R:lL:Mchs:d:D:tm: -l admin,wait,install:,updgrade,remove:,remove-all:,list,list-owned:,manager,clean,help,search,dependencies:,recurse:,top,missing: -n 'lx' -- "$@"`
 [ $? != 0 ] && exit 1
 eval set -- "$OPTS"
 
@@ -169,6 +170,10 @@ while true; do
         -l|--list)
             cat $CACHE/installed.lst
             exit 0;;
+	-L|--list-owned)
+	   [ -e /etc/setup/$2.lst.gz ] && \
+		   zcat /etc/setup/$2.lst.gz
+	   exit 0;;
         -c|--clean)
             find $CACHE/cache -type d -name 'release' | xargs rm -rfv
             exit 0;;
