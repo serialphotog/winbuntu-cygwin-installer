@@ -18,20 +18,20 @@ function show_usage() {
     echo -e "\n lux package manager\n"
     echo "options:"
     echo "   -h | --help          this help message"
-    echo "   -A | --admin         run as administrator"
-    echo "   -w | --wait          wait for setup to finish"
-    echo "   -u | --upgrade       also upgrade installed packages"
-    echo "   -M | --manager       open cygwin package manager"
-    echo "   -l | --list          list installed packages"
-    echo "   -L | --list-owned    list files installed by package"
     echo "   -i | --install       install specified packages separated by commas"
+    echo "   -u | --upgrade       also upgrade installed packages"
     echo "   -r | --remove        remove specified packages separated by commas"
     echo "   -R | --remove-all    remove package and dependencies orphaned by package"
+    echo "   -M | --manager       open cygwin package manager"
+    echo "   -A | --admin         run install/remove as administrator"
+    echo "   -w | --wait          wait for install/remove to finish"
     echo "   -c | --clean         clean downloaded package cache"
     echo "   -s | --search        search available packages using regex"
-    echo "   -d | --dependencies  get the depenendencies for a package"
+    echo "   -d | --depends       get the depenendencies for a package"
+    echo "   -D | --depends-all   get the depenendencies for a package recursively"
     echo "   -m | --missing       list the missing dependencies for a package"
-    echo "   -D | --recurse       get the depenendencies for a package recursively"
+    echo "   -l | --list          list installed packages"
+    echo "   -L | --list-owned    list files installed by package"
     echo "   -t | --top           get top-level (orphaned) packages"
     echo -e "\nexample:"
     echo "   $0 -i tmux -r screen -u       install tmux, remove screen and update existing"
@@ -115,7 +115,7 @@ if [ -z "$ARGS" ]; then
     exit 1
 fi
 
-OPTS=`getopt -o Awi:ur:R:lL:Mchs:d:D:tm: -l admin,wait,install:,updgrade,remove:,remove-all:,list,list-owned:,manager,clean,help,search,dependencies:,recurse:,top,missing: -n 'lx' -- "$@"`
+OPTS=`getopt -o Awi:ur:R:lL:Mchs:d:D:tm: -l admin,wait,install:,upgrade,remove:,remove-all:,list,list-owned:,manager,clean,help,search,depends:,depends-all:,top,missing: -n 'lx' -- "$@"`
 [ $? != 0 ] && exit 1
 eval set -- "$OPTS"
 
