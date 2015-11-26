@@ -5,7 +5,7 @@ EXEURL=http://cygwin.com/$CYGEXE
 MIRROR=http://cygwin.mirror.constant.com/
 PORTS_MIRROR=http://sourceware.mirrors.tds.net/pub/sourceware.org/cygwinports/
 PORTS_GPG=http://cygwinports.org/ports.gpg
-LUX_MIRROR=http://sirius.starlig.ht
+LUX_MIRROR=http://sirius.starlig.ht/
 LUX_GPG=http://sirius.starlig.ht/sirius.gpg
 CACHE=/var/cache/lux
 
@@ -32,6 +32,7 @@ function show_usage() {
     echo "   -m | --missing       list the missing dependencies for a package"
     echo "   -l | --list          list installed packages"
     echo "   -L | --list-owned    list files installed by package"
+    echo "   -b | --base          list the base packages"
     echo "   -t | --top           get top-level (orphaned) packages"
     echo -e "\nexample:"
     echo "   $0 -i tmux -r screen -u       install tmux, remove screen and update existing"
@@ -41,19 +42,36 @@ function show_usage() {
 mkdir -p $CACHE/cache
 cd $CACHE
 
+function log() {
+    echo -e $1 >&2
+}
+
+function encode() {
+    echo $1 | sed -e 's/\//%2f/g' -e 's/:/%3a/g'
+}
+
+function get_setup() {
+    setup_ini="${CACHE}/cache/$(encode $1)/x86_64/setup.ini"
+    #log $setup_ini
+    if [ -e "$setup_ini" ]; then
+        #log "using existing setup.ini for $1"
+        cat "$setup_ini" >> $2
+    else
+        #log "downloading setup.ini for $1"
+        lynx -source $1/x86_64/setup.bz2 | bunzip2 >> $2
+    fi
+}
+
 if [ ! -e "$CACHE/installed.lst" ] || [ "/etc/setup/installed.db" -nt "$CACHE/installed.lst" ]; then
     awk -F\  '{print $1}' /etc/setup/installed.db | grep -v INSTALLED.DB > $CACHE/installed.lst
     rm -f "$CACHE/setup.db"
     rm -f "$CACHE/installed.db"
     rm -f "$CACHE/base.lst"
     setup_tmp=$(mktemp /tmp/lux.XXXXXX)
-    if ! find "$CACHE/cache" -name 'setup.ini' -print -quit 2>/dev/null | grep -q .; then
-        lynx -source $MIRROR/x86_64/setup.bz2 | bunzip2 >> $setup_tmp
-        lynx -source $PORTS_MIRROR/x86_64/setup.bz2 | bunzip2 >> $setup_tmp
-        lynx -source $LUX_MIRROR/x86_64/setup.bz2 | bunzip2 >> $setup_tmp
-    else
-        find $CACHE/cache -name 'setup.ini' | xargs cat >> $setup_tmp
-    fi
+    get_setup $MIRROR $setup_tmp
+    get_setup $PORTS_MIRROR $setup_tmp
+    get_setup $LUX_MIRROR $setup_tmp
+
     grep -ve '^install:\|^source:' $setup_tmp | \
        sed 's/^sdesc:/summary:\n\t/' | \
        sed 's/^ldesc:/description:\n\t/' > $CACHE/setup.db
@@ -63,10 +81,6 @@ if [ ! -e "$CACHE/installed.lst" ] || [ "/etc/setup/installed.db" -nt "$CACHE/in
     unset versions
     awk "BEGIN { RS=\"\n@ \" } /category:.*\sBase/{print \"\n@ \"\$0}" $CACHE/installed.db | grep @ | sed 's/@ //' > $CACHE/base.lst
 fi
-
-function log() {
-    echo -e $1 >&2
-}
 
 function get_pkg() {
     awk "BEGIN { IGNORECASE=$3; RS=\"\n@ \" } /$1/{ print \"\n@ \"\$0}" $CACHE/$2.db
@@ -119,7 +133,7 @@ if [ -z "$ARGS" ]; then
     exit 1
 fi
 
-OPTS=`getopt -o Awi:ur:R:lL:Mchs:d:D:tm: -l admin,wait,install:,upgrade,remove:,remove-all:,list,list-owned:,manager,clean,help,search,depends:,depends-all:,top,missing: -n 'lux' -- "$@"`
+OPTS=`getopt -o Awi:ur:R:lL:bMchs:d:D:tm: -l admin,base,wait,install:,upgrade,remove:,remove-all:,list,list-owned:,manager,clean,help,search,depends:,depends-all:,top,missing: -n 'lux' -- "$@"`
 [ $? != 0 ] && exit 1
 eval set -- "$OPTS"
 
@@ -174,10 +188,13 @@ while true; do
         -l|--list)
             cat $CACHE/installed.lst
             exit 0;;
-	-L|--list-owned)
-	   [ -e /etc/setup/$2.lst.gz ] && \
-		   zcat /etc/setup/$2.lst.gz | sed -e 's/^/\//'
-	   exit 0;;
+    	-L|--list-owned)
+	       [ -e /etc/setup/$2.lst.gz ] && \
+    		   zcat /etc/setup/$2.lst.gz | sed -e 's/^/\//'
+    	   exit 0;;
+        -b|--base)
+            cat $CACHE/base.lst
+            exit 0;;
         -c|--clean)
             find $CACHE/cache -type d -name 'release' | xargs rm -rfv
             exit 0;;
