@@ -172,7 +172,7 @@ while true; do
             exit 0;;
 	-L|--list-owned)
 	   [ -e /etc/setup/$2.lst.gz ] && \
-		   zcat /etc/setup/$2.lst.gz
+		   zcat /etc/setup/$2.lst.gz | sed -e 's/^/\//'
 	   exit 0;;
         -c|--clean)
             find $CACHE/cache -type d -name 'release' | xargs rm -rfv
