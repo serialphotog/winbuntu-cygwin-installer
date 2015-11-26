@@ -6,5 +6,5 @@ PORTS_MIRROR=http://sourceware.mirrors.tds.net/pub/sourceware.org/cygwinports/
 PORTS_GPG=http://cygwinports.org/ports.gpg
 LUX_MIRROR=http://sirius.starlig.ht
 LUX_GPG=http://sirius.starlig.ht/sirius.gpg
-CACHE=/var/cache/lx
+CACHE=/var/cache/lux
 
