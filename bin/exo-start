@@ -3,6 +3,6 @@
 if [ $# -eq 0 ]; then
     cygstart -- .
 else
-    cygstart -- $@
+    cygstart -- "$@"
 fi
 
