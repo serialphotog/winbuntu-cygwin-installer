@@ -14,7 +14,12 @@ if [ -e /etc/luxrc ]; then
 fi
 
 function show_usage() {
-    echo "Usage:  lux [options]"
+    echo "Usage:           lux -h"
+    echo " install/remove: lux [-uMAw] [-i pkg[,pkg...] [-R pkg|-r pkg[,pkg...]]"
+    echo " clean cache:    lux -c"
+    echo " pkg info:       lux [-d|-D|-m|-n|-L] pkg"
+    echo " system info:    lux [-b|-l|-t]"
+    echo " pkg search:     lux -s regex"
     echo -e "\n lux package manager\n"
     echo "options:"
     echo "   -h | --help          this help message"
@@ -22,20 +27,21 @@ function show_usage() {
     echo "   -u | --upgrade       also upgrade installed packages"
     echo "   -r | --remove        remove specified packages separated by commas"
     echo "   -R | --remove-all    remove package and dependencies orphaned by package"
-    echo "   -M | --manager       open cygwin package manager"
+    echo "   -M | --manager       open cygwin package manager before install/remove"
     echo "   -A | --admin         run install/remove as administrator"
     echo "   -w | --wait          wait for install/remove to finish"
     echo "   -c | --clean         clean downloaded package cache"
     echo "   -s | --search        search available packages using regex"
     echo "   -d | --depends       get the depenendencies for a package"
     echo "   -D | --depends-all   get the depenendencies for a package recursively"
-    echo "   -m | --missing       list the missing dependencies for a package"
+    echo "   -m | --missing       list the not-installed dependencies for a package"
+    echo "   -n | --needs         list the packages which depend on specified installed package"
     echo "   -l | --list          list installed packages"
     echo "   -L | --list-owned    list files installed by package"
     echo "   -b | --base          list the base packages"
-    echo "   -t | --top           get top-level (orphaned) packages"
-    echo -e "\nexample:"
-    echo "   $0 -i tmux -r screen -u       install tmux, remove screen and update existing"
+    echo "   -t | --top           get top-level/orphaned packages"
+    echo -e "\nexample:\n"
+    echo -e "   $0 -i tmux -r screen -u       install tmux, remove screen and update existing\n"
 }
 
 #setup cache
@@ -95,7 +101,12 @@ function pkg_search_inst() {
 }
 
 function get_deps() {
-    versions=$(pkg_search "^$1\\n" 0 | grep "^version:\s" | awk -F:\  '{print $2}' | sort -r)
+    if grep -qe "^$1\\s" $CACHE/installed.lst; then
+        do_search=pkg_search_inst
+    else
+        do_search=pkg_search
+    fi
+    versions=$($do_search "^$1\\n" 0 | grep "^version:\s" | awk -F:\  '{print $2}' | sort -r)
     for ver in $versions; do
         if grep "$1-$ver" /etc/setup/installed.db >/dev/null; then
             version=$ver
@@ -103,7 +114,7 @@ function get_deps() {
         fi
     done
     dep_tmp=$(mktemp /tmp/lux.XXXXXX)
-    pkg_search "^$1\\n.*version:\s$version" 0 | grep "^requires:\s" -m 1 | awk -F:\  '{print $2}' | sed 's/\s\+/\n/g' | sort > $dep_tmp
+    $do_search "^$1\\n.*version:\s$version" 0 | grep "^requires:\s" -m 1 | awk -F:\  '{print $2}' | sed 's/\s\+/\n/g' | sort > $dep_tmp
     sort $dep_tmp $CACHE/base.lst | uniq -d | sort - $dep_tmp | uniq -u
     rm $dep_tmp
 }
@@ -125,6 +136,19 @@ function get_orphans() {
         sort $CACHE/installed.lst $CACHE/base.lst - | uniq -u
 }
 
+function get_missing() {
+    NEW="$1 $2"
+    for dep in $(get_deps "$1"); do
+        if [[ " $NEW " != *" $dep "* ]] && ! grep -qe "^$dep$" $CACHE/installed.lst; then
+            NEW=$(get_missing $dep "$NEW")
+        fi
+    done
+    echo $NEW
+}
+
+function get_rev_deps() {
+    pkg_search_inst "\\nrequires:.*\\s$1\\s.*version:" 0 | grep @ | awk -F\  '{print $2}'
+}
 
 ARGS=$@
 if [ -z "$ARGS" ]; then
@@ -133,7 +157,7 @@ if [ -z "$ARGS" ]; then
     exit 1
 fi
 
-OPTS=`getopt -o Awi:ur:R:lL:bMchs:d:D:tm: -l admin,base,wait,install:,upgrade,remove:,remove-all:,list,list-owned:,manager,clean,help,search,depends:,depends-all:,top,missing: -n 'lux' -- "$@"`
+OPTS=`getopt -o Awi:ur:R:lL:bMchs:d:D:tm:n: -l admin,base,needs:,wait,install:,upgrade,remove:,remove-all:,list,list-owned:,manager,clean,help,search,depends:,depends-all:,top,missing: -n 'lux' -- "$@"`
 [ $? != 0 ] && exit 1
 eval set -- "$OPTS"
 
@@ -157,17 +181,17 @@ while true; do
         -s|--search)
             get_pkg "^\\S*$2\\S*|summary:.*$2.*description:|description:.*$2.*category:" setup 1
             exit 0;;
-        -d|--dependencies)
+        -d|--depends)
             get_deps "$2"
             exit 0;;
-        -D|--recurse)
-	    r_get_deps "$2" | sed 's/\s\+/\n/g' | sort | uniq 
+        -D|--depends-all)
+    	    r_get_deps "$2" | sed 's/\s\+/\n/g' | sort | uniq 
+            exit 0;;
+        -n|--needs)
+            get_rev_deps "$2" | sed 's/\s\+/\n/g' | sort | uniq
             exit 0;;
         -m|--missing)
-	    missing_tmp=$(mktemp /tmp/lux.XXXXXX)
-            r_get_deps "$2" | sed 's/\s\+/\n/g' | grep -v "^$2$" > $missing_tmp
-            sort $missing_tmp $CACHE/installed.lst | uniq -d | sort - $missing_tmp | sort | uniq -u
-            rm $missing_tmp
+    	    get_missing "$2" | sed 's/\s\+/\n/g' | sort | uniq 
             exit 0;;
         -t|--top)
             get_orphans
