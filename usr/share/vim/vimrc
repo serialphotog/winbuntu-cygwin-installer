@@ -4,8 +4,6 @@
 
 set nocompatible
 
-set shell=bash\ -l
-
 if exists('g:loaded_sensible') || &compatible
   finish
 else
@@ -122,5 +120,7 @@ if !exists('g:loaded_matchit') && findfile('plugin/matchit.vim', &rtp) ==# ''
 endif
 
 inoremap <C-U> <C-G>u<C-U>
+
+set shell=bash\ -l
 
 " vim:set ft=vim et sw=2:

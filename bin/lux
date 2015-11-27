@@ -85,7 +85,8 @@ if [ ! -e "$CACHE/installed.lst" ] || [ "/etc/setup/installed.db" -nt "$CACHE/in
 	dep_re=$(grep -v INSTALLED.DB /etc/setup/installed.db | awk -F\  '{x=$2;sub(/\.tar.*$/,"",x);sub($1"-","^"$1"\\n.*\\nversion:\\s",x);print x}'  | paste -sd '|')
     awk "BEGIN { RS=\"\n@ \" } /$dep_re/{print \"\n@ \"\$0}" $CACHE/setup.db > $CACHE/installed.db
     unset versions
-    awk "BEGIN { RS=\"\n@ \" } /category:.*\sBase/{print \"\n@ \"\$0}" $CACHE/installed.db | grep @ | sed 's/@ //' > $CACHE/base.lst
+    awk "BEGIN { RS=\"\n@ \" } /category:.*\sBase/{print \"\n@ \"\$0}" $CACHE/installed.db | grep -e '@\|requires:' | sed 's/@ //' | sed 's/requires:\s//g' | \
+        sed 's/\s/\n/g' | sort | uniq > $CACHE/base.lst
 fi
 
 function get_pkg() {
