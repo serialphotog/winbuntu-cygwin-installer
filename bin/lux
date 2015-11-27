@@ -14,7 +14,12 @@ if [ -e /etc/luxrc ]; then
 fi
 
 function show_usage() {
-    echo "Usage:  lux [options]"
+    echo "Usage:           lux -h"
+    echo " install/remove: lux [-uMAw] [-i pkg[,pkg...] [-R pkg|-r pkg[,pkg...]]"
+    echo " clean cache:    lux -c"
+    echo " pkg info:       lux [-d|-D|-m|-n|-L] pkg"
+    echo " system info:    lux [-b|-l|-t]"
+    echo " pkg search:     lux -s regex"
     echo -e "\n lux package manager\n"
     echo "options:"
     echo "   -h | --help          this help message"
@@ -22,20 +27,21 @@ function show_usage() {
     echo "   -u | --upgrade       also upgrade installed packages"
     echo "   -r | --remove        remove specified packages separated by commas"
     echo "   -R | --remove-all    remove package and dependencies orphaned by package"
-    echo "   -M | --manager       open cygwin package manager"
+    echo "   -M | --manager       open cygwin package manager before install/remove"
     echo "   -A | --admin         run install/remove as administrator"
     echo "   -w | --wait          wait for install/remove to finish"
     echo "   -c | --clean         clean downloaded package cache"
     echo "   -s | --search        search available packages using regex"
     echo "   -d | --depends       get the depenendencies for a package"
     echo "   -D | --depends-all   get the depenendencies for a package recursively"
-    echo "   -m | --missing       list the missing dependencies for a package"
+    echo "   -m | --missing       list the not-installed dependencies for a package"
+    echo "   -n | --needs         list the packages which depend on specified installed package"
     echo "   -l | --list          list installed packages"
     echo "   -L | --list-owned    list files installed by package"
     echo "   -b | --base          list the base packages"
-    echo "   -t | --top           get top-level (orphaned) packages"
-    echo -e "\nexample:"
-    echo "   $0 -i tmux -r screen -u       install tmux, remove screen and update existing"
+    echo "   -t | --top           get top-level/orphaned packages"
+    echo -e "\nexample:\n"
+    echo -e "   $0 -i tmux -r screen -u       install tmux, remove screen and update existing\n"
 }
 
 #setup cache
