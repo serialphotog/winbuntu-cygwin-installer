@@ -526,7 +526,11 @@ __git_ps1 ()
 }
 
 # color prompt generator
-P_COLOR="1;33"
+if [ -z "$VIMRUNTIME" ]; then
+    P_COLOR="1;33"
+else
+    P_COLOR="1;32"
+fi
 S_SYM="\$"
 WAIT_ONE=true
 function __default_ps1() {
