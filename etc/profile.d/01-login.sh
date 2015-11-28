@@ -25,7 +25,7 @@ esac
 export EDITOR="nano"
 export BROWSER="windows-browser"
 export LESS="-erFX"
-export TERM=gnome-256color
+#export TERM=gnome-256color
 export VIM=/usr/share/vim/
 
 PS2=" . \[\e[m\]"
