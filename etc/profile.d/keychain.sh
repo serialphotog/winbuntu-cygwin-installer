@@ -24,6 +24,7 @@ function _stop_agent {
 
 # Source SSH settings, if applicable
     if [ -e "$HOME/.ssh/id_rsa" ]; then
+        mkdir -p $(dirname $MINTTY_COUNT_FILE)
         . "${MINTTY_COUNT_FILE}" 2>/dev/null
         echo "export MINTTY_COUNT=$((MINTTY_COUNT+1))" > "$MINTTY_COUNT_FILE"
         unset MINTTY_COUNT
