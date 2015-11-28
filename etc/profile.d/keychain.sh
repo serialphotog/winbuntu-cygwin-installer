@@ -1,22 +1,22 @@
 #!/bin/bash
 
-if [ -z "$DESKTOP_SESSION" ]; then
+if [ -z "$DESKTOP_SESSION" ] && [ -z "$VIMRUNTIME" ]; then
 
-    MINTTY_COUNT_FILE="$HOME/.mintty_count"
+    MINTTY_COUNT_FILE="$HOME/.keychain/mintty_count"
 
 function start_agent {
     if [ ! -e "$MINTTY_COUNT_FILE" ]; then
         echo 'export MINTTY_COUNT=1' > "$MINTTY_COUNT_FILE"
         chmod 600 "${MINTTY_COUNT_FILE}"
     fi
-    eval `keychain --eval --ignore-missing --agents ssh id_rsa`
- }
+    eval `keychain -q --eval --ignore-missing --agents ssh id_rsa`
+}
 
 function stop_agent {
     . "$MINTTY_COUNT_FILE"
     if [ "$MINTTY_COUNT" -le 1 ]; then
 	rm -f $MINTTY_COUNT_FILE
-        eval `keychain --eval -k all`
+        eval `keychain -q --eval -k all`
     else 
 	echo "export MINTTY_COUNT=$((MINTTY_COUNT-1))" > "$MINTTY_COUNT_FILE"
     fi
