@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ -z "$DESKTOP_SESSION" ] && [ -z "$VIMRUNTIME" ]; then
+if [ -z "$DESKTOP_SESSION" ] && [ "$SHLVL" -eq "1" ]; then
 
     MINTTY_COUNT_FILE="$HOME/.keychain/mintty_count"
 
