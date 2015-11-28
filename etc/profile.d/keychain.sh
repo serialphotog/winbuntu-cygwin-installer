@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ -z "$DESKTOP_SESSION" ] && [ "$SHLVL" -eq "1" ]; then
+if [ -z "$DESKTOP_SESSION" ] && [ "$SHLVL" -eq "1" ] && [ "$TERM" != "cygwin" ]; then
 
     MINTTY_COUNT_FILE="$HOME/.keychain/mintty_count"
 
@@ -15,19 +15,21 @@ function _start_agent {
 function _stop_agent {
     . "$MINTTY_COUNT_FILE"
     if [ "$MINTTY_COUNT" -le 1 ]; then
-	rm -f $MINTTY_COUNT_FILE
+	    rm -f $MINTTY_COUNT_FILE
         eval `keychain -q --eval -k all`
     else 
-	echo "export MINTTY_COUNT=$((MINTTY_COUNT-1))" > "$MINTTY_COUNT_FILE"
+	    echo "export MINTTY_COUNT=$((MINTTY_COUNT-1))" > "$MINTTY_COUNT_FILE"
     fi
 }
 
-# Source SSH settings, if applicable
+    # Source SSH settings, if applicable
     if [ -e "$HOME/.ssh/id_rsa" ]; then
+        mkdir -p $(dirname $MINTTY_COUNT_FILE)
         . "${MINTTY_COUNT_FILE}" 2>/dev/null
         echo "export MINTTY_COUNT=$((MINTTY_COUNT+1))" > "$MINTTY_COUNT_FILE"
         unset MINTTY_COUNT
         _start_agent;
         trap _stop_agent 0
     fi
+
 fi
