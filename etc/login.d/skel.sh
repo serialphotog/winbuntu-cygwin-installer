@@ -16,5 +16,5 @@ for bone in `find /etc/skel -type f -printf "%P\n"`; do
     fi
 done
 
-export SKEL_FINISHED=1
-
+SKEL_FINISHED=1
+keep_env SKEL_FINISHED
