@@ -3,14 +3,14 @@
 [ -z "$DESKTOP_SESSION" ] && [ "$TERM" != "cygwin" ] || return
 
 function _start_agent {
-    eval `keychain -Q --eval --ignore-missing --agents ssh id_rsa`
+    eval `keychain -q -Q --eval --ignore-missing --agents ssh id_rsa`
     on_logout '_stop_agent'
 }
 
 function _stop_agent {
     count=$(cat $ENV_COUNT_FILE)
     if [ "$count" -le 1 ]; then
-        eval `keychain --eval -k all`
+        eval `keychain -q --eval -k all`
     fi
 }
 
