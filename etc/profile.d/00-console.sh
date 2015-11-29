@@ -32,8 +32,8 @@ function _start_login {
 }
 
 function _logout {
+    sh_count=$(cat /var/run/count)
     if [ "$TERM" != "cygwin" ]; then
-        sh_count=$(cat /var/run/count)
         if [ "$sh_count" -le 1 ]; then
             echo -e '\n * shutting down'
     	    rm -f /var/run/count
@@ -41,6 +41,8 @@ function _logout {
         else 
     	    echo "$((sh_count-1))" > /var/run/count
         fi
+    elif [ "$TERM" = "cygwin" ] && [ "sh_count" -le 1 ]; then
+        rm -f /var/run/env
     fi
 }
 
