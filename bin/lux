@@ -68,28 +68,31 @@ function get_setup() {
     fi
 }
 
-if [ ! -e "$CACHE/installed.lst" ] || [ "/etc/setup/installed.db" -nt "$CACHE/installed.lst" ]; then
-    awk -F\  '{print $1}' /etc/setup/installed.db | grep -v INSTALLED.DB > $CACHE/installed.lst
-    rm -f "$CACHE/setup.db"
-    rm -f "$CACHE/installed.db"
-    rm -f "$CACHE/base.lst"
-    setup_tmp=$(mktemp /tmp/lux.XXXXXX)
-    get_setup $MIRROR $setup_tmp
-    get_setup $PORTS_MIRROR $setup_tmp
-    get_setup $LUX_MIRROR $setup_tmp
+function check_db() {
+    if [ ! -e "$CACHE/installed.lst" ] || [ "/etc/setup/installed.db" -nt "$CACHE/installed.lst" ]; then
+        awk -F\  '{print $1}' /etc/setup/installed.db | grep -v INSTALLED.DB > $CACHE/installed.lst
+        rm -f "$CACHE/setup.db"
+        rm -f "$CACHE/installed.db"
+        rm -f "$CACHE/base.lst"
+        setup_tmp=$(mktemp /tmp/lux.XXXXXX)
+        get_setup $MIRROR $setup_tmp
+        get_setup $PORTS_MIRROR $setup_tmp
+        get_setup $LUX_MIRROR $setup_tmp
 
-    grep -ve '^install:\|^source:' $setup_tmp | \
-       sed 's/^sdesc:/summary:\n\t/' | \
-       sed 's/^ldesc:/description:\n\t/' > $CACHE/setup.db
-    rm -f $setup_tmp
-	dep_re=$(grep -v INSTALLED.DB /etc/setup/installed.db | awk -F\  '{x=$2;sub(/\.tar.*$/,"",x);sub($1"-","^"$1"\\n.*\\nversion:\\s",x);print x}'  | paste -sd '|')
-    awk "BEGIN { RS=\"\n@ \" } /$dep_re/{print \"\n@ \"\$0}" $CACHE/setup.db > $CACHE/installed.db
-    unset versions
-    awk "BEGIN { RS=\"\n@ \" } /category:.*\sBase/{print \"\n@ \"\$0}" $CACHE/installed.db | grep -e '@\|requires:' | sed 's/@ //' | sed 's/requires:\s//g' | \
-        sed 's/\s/\n/g' | sort | uniq > $CACHE/base.lst
-fi
+        grep -ve '^install:\|^source:' $setup_tmp | \
+           sed 's/^sdesc:/summary:\n\t/' | \
+           sed 's/^ldesc:/description:\n\t/' > $CACHE/setup.db
+        rm -f $setup_tmp
+    	dep_re=$(grep -v INSTALLED.DB /etc/setup/installed.db | awk -F\  '{x=$2;sub(/\.tar.*$/,"",x);sub($1"-","^"$1"\\n.*\\nversion:\\s",x);print x}'  | paste -sd '|')
+        awk "BEGIN { RS=\"\n@ \" } /$dep_re/{print \"\n@ \"\$0}" $CACHE/setup.db > $CACHE/installed.db
+        unset versions
+        awk "BEGIN { RS=\"\n@ \" } /category:.*\sBase/{print \"\n@ \"\$0}" $CACHE/installed.db | grep -e '@\|requires:' | sed 's/@ //' | sed 's/requires:\s//g' | \
+            sed 's/\s/\n/g' | sort | uniq > $CACHE/base.lst
+    fi
+}
 
 function get_pkg() {
+    check_db
     awk "BEGIN { IGNORECASE=$3; RS=\"\n@ \" } /$1/{ print \"\n@ \"\$0}" $CACHE/$2.db
 }
 
@@ -102,6 +105,7 @@ function pkg_search_inst() {
 }
 
 function get_deps() {
+    check_db
     if grep -qe "^$1\\s" $CACHE/installed.lst; then
         do_search=pkg_search_inst
     else
@@ -131,6 +135,7 @@ function r_get_deps() {
 }
 
 function get_orphans() {
+    check_db
     installed_db=$(cat $CACHE/installed.lst)
     search_re="requires:.*\\s${installed_db//[[:space:]]/\\s*\\n*|requires:.*\\s}\\s*\\n*"
     pkg_search_inst "$search_re" 0 | awk '/^requires:/{x=$0;sub(/^requires:\s*/,"",x);gsub(/\s/,"\n",x);print x}' | \
@@ -211,6 +216,7 @@ while true; do
                 sort | paste -sd ',')
             shift 2;;
         -l|--list)
+            check_db
             cat $CACHE/installed.lst
             exit 0;;
     	-L|--list-owned)
@@ -218,6 +224,7 @@ while true; do
     		   zcat /etc/setup/$2.lst.gz | sed -e 's/^/\//'
     	   exit 0;;
         -b|--base)
+            check_db
             cat $CACHE/base.lst
             exit 0;;
         -c|--clean)
