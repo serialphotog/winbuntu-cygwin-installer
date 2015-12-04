@@ -1,9 +1,9 @@
 #!/bin/bash
 
-[ -z "$DESKTOP_SESSION" ] && [ "$TERM" != "cygwin" ] || return
+[ -z "$DESKTOP_SESSION" ] && [ "$TERM" != "cygwin" ] && [ "$SHLVL" = "1" ] || return
 
 function _start_agent {
-    ids=$(ls "$HOME/.ssh/id_*" | grep -v '\.pub')
+    ids=$(ls $HOME/.ssh/id_* | grep -v '\.pub')
     eval `keychain -q -Q --eval --ignore-missing --agents ssh $ids`
 }
 

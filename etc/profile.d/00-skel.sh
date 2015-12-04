@@ -1,6 +1,6 @@
 #!/bin/bash
 
-[ -n "$SKEL_FINISHED" ] && return
+[ -z "$SKEL_FINISHED" ] && [ "$SHLVL" = "1" ] || return
 
 # use windows shortcuts as symlinks
 export CYGWIN="${CYGWIN}${CYGWIN:+ }winsymlinks"
