@@ -113,6 +113,7 @@ function get_deps() {
     fi
     versions=$($do_search "^$1\\n" 0 | grep "^version:\s" | awk -F:\  '{print $2}' | sort -r)
     for ver in $versions; do
+	[ "x$version" = "x" ] && version=$ver
         if grep "$1-$ver" /etc/setup/installed.db >/dev/null; then
             version=$ver
             break;
