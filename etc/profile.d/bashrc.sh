@@ -9,7 +9,9 @@ export LC_TIME=$LANG
 export LC_COLLATE="C"
 export LC_MONETARY=$LANG
 export LC_MESSAGES=$LANG
-export PATH="/usr/local/sbin:/usr/sbin:$PATH"
+if [[ "$PATH" != *"/sbin"* ]]; then
+    export PATH="/usr/local/sbin:/sbin:/usr/sbin:$PATH"
+fi
 
 # If not running interactively, don't do anything
 case $- in
