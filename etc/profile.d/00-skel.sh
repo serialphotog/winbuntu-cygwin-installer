@@ -4,6 +4,7 @@
 
 # use windows shortcuts as symlinks
 export CYGWIN="${CYGWIN}${CYGWIN:+ }winsymlinks"
+export PATH="$PATH:/usr/libexec/busybox/bin:/usr/libexec/busybox/sbin"
 
 # bind user profile directory
 [ ! -e "$HOME/.userprofile" ] && mount -fo user "$USERPROFILE" ~/.userprofile
