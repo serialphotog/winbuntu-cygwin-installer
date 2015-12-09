@@ -125,11 +125,11 @@ function get_deps() {
     $do_search "^$1\\n.*version:\s$version" 0 | grep "^requires:\s" -m 1 | awk -F:\  '{print $2}' | sed 's/\s\+/\n/g' | sort - | uniq -u
 }
 
-function r_get_deps() {
+function get_deps_recurse() {
     NEW="$1 $2"
     for dep in $(get_deps "$1"); do
         if [[ " $NEW " != *" $dep "* ]]; then
-            NEW=$(r_get_deps $dep "$NEW")
+            NEW=$(get_deps_recurse $dep "$NEW")
         fi
     done
     echo $NEW
@@ -160,7 +160,7 @@ function get_islands() {
     for o in $NEW; do
         for dep in $(get_deps "$o"); do
             if [[ " $NEW " != *" $dep "* ]]; then
-                NEW=$(r_get_deps $dep "$NEW")
+                NEW=$(get_deps_recurse $dep "$NEW")
             fi
         done
     done
@@ -213,7 +213,7 @@ while true; do
             get_deps "$2"
             exit 0;;
         -D|--depends-all)
-    	    r_get_deps "$2" | sed 's/\s\+/\n/g' | sort | uniq 
+    	    get_deps_recurse "$2" | sed 's/\s\+/\n/g' | sort | uniq 
             exit 0;;
         -n|--needs)
             get_rev_deps "$2" | sed 's/\s\+/\n/g' | sort | uniq
@@ -241,7 +241,7 @@ while true; do
             shift 2;;
         -R|--remove-all)
             r_tmp=$(mktemp /tmp/lux.XXXXXX)
-            r_get_deps "$2" | sed 's/\s\+/\n/g' > $r_tmp
+            get_deps_recurse "$2" | sed 's/\s\+/\n/g' > $r_tmp
             REMOVE="-x "$(sort $r_tmp $CACHE/base.lst | uniq -d | sort - $r_tmp | uniq -u | paste -sd ,)
             rm $r_tmp
             shift 2;;
