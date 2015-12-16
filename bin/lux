@@ -139,8 +139,10 @@ function get_orphans() {
     check_db
     installed_db=$(cat $CACHE/installed.lst)
     search_re="requires:.*\\s${installed_db//[[:space:]]/\\s*\\n*|requires:.*\\s}\\s*\\n*"
+    orphans_tmp=$(mktemp /tmp/lux.XXXXXX)
     pkg_search_inst "$search_re" 0 | awk '/^requires:/{x=$0;sub(/^requires:\s*/,"",x);gsub(/\s/,"\n",x);print x}' | \
-        sort $CACHE/installed.lst $CACHE/base.lst - | uniq -u
+        sort $CACHE/installed.lst $CACHE/base.lst - | uniq -u > $orphans_tmp
+    sort $orphans_tmp $CACHE/installed.lst | uniq -d
 }
 
 function get_missing() {
