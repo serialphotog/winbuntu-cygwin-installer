@@ -31,6 +31,7 @@ function show_usage() {
     echo "   -A | --admin         run install/remove as administrator"
     echo "   -w | --wait          wait for install/remove to finish"
     echo "   -c | --clean         clean downloaded package cache"
+    echo "   -v | --verbose       open a cmd.exe to show verbose output"
     echo "   -s | --search        search available packages using regex"
     echo "   -d | --depends       get the depenendencies for a package"
     echo "   -D | --depends-all   get the depenendencies for a package recursively"
@@ -184,7 +185,7 @@ if [ -z "$ARGS" ]; then
     exit 1
 fi
 
-OPTS=`getopt -o Awi:ur:R:lL:bMchs:d:D:tm:n:f:TN: -l needs-all:,islands,file:,admin,base,needs:,wait,install:,upgrade,remove:,remove-all:,list,list-owned:,manager,clean,help,search,depends:,depends-all:,top,missing: -n 'lux' -- "$@"`
+OPTS=`getopt -o vAwi:ur:R:lL:bMchs:d:D:tm:n:f:TN: -l verbose,needs-all:,islands,file:,admin,base,needs:,wait,install:,upgrade,remove:,remove-all:,list,list-owned:,manager,clean,help,search,depends:,depends-all:,top,missing: -n 'lux' -- "$@"`
 [ $? != 0 ] && exit 1
 eval set -- "$OPTS"
 
@@ -204,6 +205,9 @@ while true; do
             shift;;
         -A|--admin)
             ADMIN=""
+            shift;;
+        -v|--verbose)
+            CMDSH="cmd /k"
             shift;;
         -f|--file)
             grep `cygcheck -f $2 | sed 's/\n//g'` /etc/setup/installed.db | awk -F\  '{print $1}'
@@ -279,6 +283,7 @@ else
     lynx -source $EXEURL > $CYGEXE
 fi
 chmod +x $CYGEXE
+chmod -R +wX /var/cache/rebase
 
-cygstart $CYGWAIT -- $CYGEXE -s $LUX_MIRROR -s $MIRROR -s $PORTS_MIRROR -K $LUX_GPG -K $PORTS_GPG -q -d -l $(cygpath -w $CACHE/cache) -R $(cygpath -w /) $WAIT $ADMIN $INSTALL $UPGRADE $REMOVE $MANAGER
+cygstart $CYGWAIT -- $CMDSH $CYGEXE -s $LUX_MIRROR -s $MIRROR -s $PORTS_MIRROR -K $LUX_GPG -K $PORTS_GPG -v -q -d -l $(cygpath -w $CACHE/cache) -R $(cygpath -w /) $WAIT $ADMIN $INSTALL $UPGRADE $REMOVE $MANAGER
 
