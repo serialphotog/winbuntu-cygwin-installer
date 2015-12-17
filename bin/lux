@@ -31,6 +31,7 @@ function show_usage() {
     echo "   -A | --admin         run install/remove as administrator"
     echo "   -w | --wait          wait for install/remove to finish"
     echo "   -c | --clean         clean downloaded package cache"
+    echo "   -v | --verbose       open a cmd.exe to show verbose output"
     echo "   -s | --search        search available packages using regex"
     echo "   -d | --depends       get the depenendencies for a package"
     echo "   -D | --depends-all   get the depenendencies for a package recursively"
@@ -125,11 +126,11 @@ function get_deps() {
     $do_search "^$1\\n.*version:\s$version" 0 | grep "^requires:\s" -m 1 | awk -F:\  '{print $2}' | sed 's/\s\+/\n/g' | sort - | uniq -u
 }
 
-function r_get_deps() {
+function get_deps_recurse() {
     NEW="$1 $2"
     for dep in $(get_deps "$1"); do
         if [[ " $NEW " != *" $dep "* ]]; then
-            NEW=$(r_get_deps $dep "$NEW")
+            NEW=$(get_deps_recurse $dep "$NEW")
         fi
     done
     echo $NEW
@@ -139,8 +140,10 @@ function get_orphans() {
     check_db
     installed_db=$(cat $CACHE/installed.lst)
     search_re="requires:.*\\s${installed_db//[[:space:]]/\\s*\\n*|requires:.*\\s}\\s*\\n*"
+    orphans_tmp=$(mktemp /tmp/lux.XXXXXX)
     pkg_search_inst "$search_re" 0 | awk '/^requires:/{x=$0;sub(/^requires:\s*/,"",x);gsub(/\s/,"\n",x);print x}' | \
-        sort $CACHE/installed.lst $CACHE/base.lst - | uniq -u
+        sort $CACHE/installed.lst $CACHE/base.lst - | uniq -u > $orphans_tmp
+    sort $orphans_tmp $CACHE/installed.lst | uniq -d
 }
 
 function get_missing() {
@@ -160,7 +163,7 @@ function get_islands() {
     for o in $NEW; do
         for dep in $(get_deps "$o"); do
             if [[ " $NEW " != *" $dep "* ]]; then
-                NEW=$(r_get_deps $dep "$NEW")
+                NEW=$(get_deps_recurse $dep "$NEW")
             fi
         done
     done
@@ -182,7 +185,7 @@ if [ -z "$ARGS" ]; then
     exit 1
 fi
 
-OPTS=`getopt -o Awi:ur:R:lL:bMchs:d:D:tm:n:f:TN: -l needs-all:,islands,file:,admin,base,needs:,wait,install:,upgrade,remove:,remove-all:,list,list-owned:,manager,clean,help,search,depends:,depends-all:,top,missing: -n 'lux' -- "$@"`
+OPTS=`getopt -o vAwi:ur:R:lL:bMchs:d:D:tm:n:f:TN: -l verbose,needs-all:,islands,file:,admin,base,needs:,wait,install:,upgrade,remove:,remove-all:,list,list-owned:,manager,clean,help,search,depends:,depends-all:,top,missing: -n 'lux' -- "$@"`
 [ $? != 0 ] && exit 1
 eval set -- "$OPTS"
 
@@ -203,6 +206,9 @@ while true; do
         -A|--admin)
             ADMIN=""
             shift;;
+        -v|--verbose)
+            CMDSH="cmd /k"
+            shift;;
         -f|--file)
             grep `cygcheck -f $2 | sed 's/\n//g'` /etc/setup/installed.db | awk -F\  '{print $1}'
             exit 0;;
@@ -213,7 +219,7 @@ while true; do
             get_deps "$2"
             exit 0;;
         -D|--depends-all)
-    	    r_get_deps "$2" | sed 's/\s\+/\n/g' | sort | uniq 
+    	    get_deps_recurse "$2" | sed 's/\s\+/\n/g' | sort | uniq 
             exit 0;;
         -n|--needs)
             get_rev_deps "$2" | sed 's/\s\+/\n/g' | sort | uniq
@@ -241,7 +247,7 @@ while true; do
             shift 2;;
         -R|--remove-all)
             r_tmp=$(mktemp /tmp/lux.XXXXXX)
-            r_get_deps "$2" | sed 's/\s\+/\n/g' > $r_tmp
+            get_deps_recurse "$2" | sed 's/\s\+/\n/g' > $r_tmp
             REMOVE="-x "$(sort $r_tmp $CACHE/base.lst | uniq -d | sort - $r_tmp | uniq -u | paste -sd ,)
             rm $r_tmp
             shift 2;;
@@ -277,6 +283,7 @@ else
     lynx -source $EXEURL > $CYGEXE
 fi
 chmod +x $CYGEXE
+chmod -R +wX /var/cache/rebase
 
-cygstart $CYGWAIT -- $CYGEXE -s $LUX_MIRROR -s $MIRROR -s $PORTS_MIRROR -K $LUX_GPG -K $PORTS_GPG -q -d -l $(cygpath -w $CACHE/cache) -R $(cygpath -w /) $WAIT $ADMIN $INSTALL $UPGRADE $REMOVE $MANAGER
+cygstart $CYGWAIT -- $CMDSH $CYGEXE -s $LUX_MIRROR -s $MIRROR -s $PORTS_MIRROR -K $LUX_GPG -K $PORTS_GPG -v -q -d -l $(cygpath -w $CACHE/cache) -R $(cygpath -w /) $WAIT $ADMIN $INSTALL $UPGRADE $REMOVE $MANAGER
 
