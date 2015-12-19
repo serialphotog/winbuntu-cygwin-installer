@@ -32,7 +32,8 @@ function show_usage() {
     echo "   -w | --wait          wait for install/remove to finish"
     echo "   -c | --clean         clean downloaded package cache"
     echo "   -v | --verbose       open a cmd.exe to show verbose output"
-    echo "   -s | --search        search available packages using regex"
+    echo "   -s | --search        search installed packages using regex"
+    echo "   -S | --search-all    search available packages using regex"
     echo "   -d | --depends       get the depenendencies for a package"
     echo "   -D | --depends-all   get the depenendencies for a package recursively"
     echo "   -m | --missing       list the not-installed dependencies for a package"
@@ -185,7 +186,7 @@ if [ -z "$ARGS" ]; then
     exit 1
 fi
 
-OPTS=`getopt -o vAwi:ur:R:lL:bMchs:d:D:tm:n:f:TN: -l verbose,needs-all:,islands,file:,admin,base,needs:,wait,install:,upgrade,remove:,remove-all:,list,list-owned:,manager,clean,help,search,depends:,depends-all:,top,missing: -n 'lux' -- "$@"`
+OPTS=`getopt -o vAwi:ur:R:lL:bMchs:S:d:D:tm:n:f:TN: -l verbose,needs-all:,islands,file:,admin,base,needs:,wait,install:,upgrade,remove:,remove-all:,list,list-owned:,manager,clean,help,search:,search-all:,depends:,depends-all:,top,missing: -n 'lux' -- "$@"`
 [ $? != 0 ] && exit 1
 eval set -- "$OPTS"
 
@@ -213,7 +214,10 @@ while true; do
             grep `cygcheck -f $2 | sed 's/\n//g'` /etc/setup/installed.db | awk -F\  '{print $1}'
             exit 0;;
         -s|--search)
-            get_pkg "^\\S*$2\\S*|summary:.*$2.*description:|description:.*$2.*category:" setup 1
+            pkg_search_inst "^\\S*$2\\S*|summary:.*$2.*description:|description:.*$2.*category:" 1
+            exit 0;;
+        -S|--search-all)
+            pkg_search "^\\S*$2\\S*|summary:.*$2.*description:|description:.*$2.*category:" 1
             exit 0;;
         -d|--depends)
             get_deps "$2"
@@ -262,7 +266,7 @@ while true; do
             cat $CACHE/base.lst
             exit 0;;
         -c|--clean)
-            rm -rf $CACHE
+            find $CACHE -type d -name 'release' | xargs rm -rf
             exit 0;;
         --) 
             shift; break;;
