@@ -4,7 +4,7 @@
 
 function _start_agent {
     ids=$(ls $HOME/.ssh/id_* | grep -v '\.pub')
-    eval `keychain -q -Q --eval --ignore-missing --agents ssh $ids`
+    eval `keychain -q --timeout 480 --eval --ignore-missing --agents ssh $ids`
 }
 
 # Source SSH settings, if applicable
