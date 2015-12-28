@@ -88,7 +88,7 @@ function check_db() {
            sed 's/^sdesc:/summary:\n\t/' | \
            sed 's/^ldesc:/description:\n\t/' > $CACHE/setup.db
         rm -f $setup_tmp
-    	dep_re=$(grep -v INSTALLED.DB /etc/setup/installed.db | awk -F\  '{x=$2;sub(/\.tar.*$/,"",x);sub($1"-","^"$1"\\n.*\\nversion:\\s",x);print x}'  | paste -sd '|')
+        dep_re=$(grep -v INSTALLED.DB /etc/setup/installed.db | awk -F\  '{x=$2;sub(/\.tar.*$/,"",x);sub($1"-","^"$1"\\n.*\\nversion:\\s",x);print x}'  | paste -sd '|')
         awk "BEGIN { RS=\"\n@ \" } /$dep_re/{print \"\n@ \"\$0}" $CACHE/setup.db > $CACHE/installed.db
         awk "BEGIN { RS=\"\n@ \" } /category:.*\sBase/{print \"\n@ \"\$0}" $CACHE/installed.db | grep -e '@' | sed 's/@ //' | \
             sed 's/\s/\n/g' | sort | uniq > $CACHE/base.lst
@@ -119,7 +119,7 @@ function get_deps() {
         versions=$($do_search "^$1\\n" 0 | grep "^version:\s" | awk -F:\  '{print $2}' | sort -r)
         for ver in $versions; do
             if [ "x$version" = "x" ]; then
-                version=$ver 
+                version=$ver
                 break;
             fi
         done
@@ -223,7 +223,7 @@ while true; do
             get_deps "$2"
             exit 0;;
         -D|--depends-all)
-    	    get_deps_recurse "$2" | sed 's/\s\+/\n/g' | sort | uniq 
+            get_deps_recurse "$2" | sed 's/\s\+/\n/g' | sort | uniq
             exit 0;;
         -n|--needs)
             get_rev_deps "$2" | sed 's/\s\+/\n/g' | sort | uniq
@@ -232,7 +232,7 @@ while true; do
             get_rev_deps_ex "$2" | sed 's/\s\+/\n/g' | sort | uniq
             exit 0;;
         -m|--missing)
-    	    get_missing "$2" | sed 's/\s\+/\n/g' | sort | uniq 
+            get_missing "$2" | sed 's/\s\+/\n/g' | sort | uniq
             exit 0;;
         -t|--top)
             get_orphans
@@ -258,9 +258,9 @@ while true; do
         -l|--list)
             check_db; cat $CACHE/installed.lst
             exit 0;;
-    	-L|--list-owned)
+        -L|--list-owned)
             cygcheck -l $2
-    	    exit 0;;
+            exit 0;;
         -b|--base)
             check_db
             cat $CACHE/base.lst
@@ -268,9 +268,9 @@ while true; do
         -c|--clean)
             find $CACHE -type d -name 'release' | xargs rm -rf
             exit 0;;
-        --) 
+        --)
             shift; break;;
-        *) 
+        *)
             echo "\e[31mInternal error!\e[m"
             exit 1;;
     esac
@@ -287,7 +287,9 @@ else
     lynx -source $EXEURL > $CYGEXE
 fi
 chmod +x $CYGEXE
-chmod -R +wX /var/cache/rebase
+if [ -n "$ADMIN" ]; then
+    chmod -R +wX /var/cache/rebase
+fi
 
 cygstart $CYGWAIT -- $CMDSH $CYGEXE -s $LUX_MIRROR -s $MIRROR -s $PORTS_MIRROR -K $LUX_GPG -K $PORTS_GPG -v -q -d -l $(cygpath -w $CACHE/cache) -R $(cygpath -w /) $WAIT $ADMIN $INSTALL $UPGRADE $REMOVE $MANAGER
 
