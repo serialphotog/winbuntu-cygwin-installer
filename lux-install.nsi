@@ -28,7 +28,7 @@ SectionEnd
 
 Function DoSetup
   # download directory
-  StrCpy $2 "$INSTDIR\var\cache\lux"
+  StrCpy $2 "$INSTDIR\var\cache\cpkg"
   CreateDirectory $2
   # executable filename (downloaded)
   StrCpy $0 "$2\setup-x86_64.exe"
@@ -44,19 +44,12 @@ Function DoSetup
   success:
     # download success, execute cygwin setup with parameters (mirrors,
     # lux-minimal package, download & install locations, etc.)
-    ExecWait '"$0" -v -g -B -q -l "$2\cache" -P lux-minimal -R "$INSTDIR" \
-    -s http://sirius.starlig.ht \
-    -s http://cygwin.mirror.constant.com \
-    -s http://sourceware.mirrors.tds.net/pub/sourceware.org/cygwinports \
+    ExecWait '"$0" -vgBqO -l "$2" -P lux-minimal -R "$INSTDIR" \
+    -s http://sirius.starlig.ht/ \
+    -s http://cygwin.mirror.constant.com/ \
+    -s http://sourceware.mirrors.tds.net/pub/sourceware.org/cygwinports/ \
     -K http://sirius.starlig.ht/sirius.gpg \
     -K http://cygwinports.org/ports.gpg'
 
-    # create windows shortcuts on desktop & in start menu
-    #CreateDirectory "$STARTMENU\Programs\lux"
-    #SetOutPath "$INSTDIR\bin"
-    #StrCpy $4 "$INSTDIR\bin\run.exe"
-    #StrCpy $5 '--quote /bin/bash.exe -l -c "cd; /bin/startx /etc/X11/xinit/Xsession xfce"'
-    #CreateShortCut "$DESKTOP\lux.lnk" "$4" '$5' "$INSTDIR\bin\Xwin.exe" 0 
-    #CreateShortCut "$STARTMENU\Programs\lux\lux.lnk" "$4" '$5' "$INSTDIR\bin\XWin.exe" 0 
 FunctionEnd
 
