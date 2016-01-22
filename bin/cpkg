@@ -90,14 +90,16 @@ function _get_base() {
     _pkg_record "category:.*\s(Base|_PostInstallLast)" 0 "$installed_ini" | grep ^@ | awk -F\  '{print $2}' | sort -u
 }
 
-function _get_deps_recursive() {
-    all_deps="$1 $2"
-    for dep in $(_get_deps "$1" "$3"); do
-        if [[ " $all_deps " != *" $dep "* ]]; then
-            all_deps="$(_get_deps_recursive $dep "$all_deps" "$3")"
+function _get_deps_all() {
+    for dep in $(_get_deps "$1" "$2"); do
+        dep_cache="/etc/setup/$dep.deps"
+        dep_stamp="/etc/setup/$dep.lst.gz"
+        if [ -e "$dep_cache" ] && [ "$dep_cache" -nt "$dep_stamp" ]; then
+            cat "$dep_cache"
+        else
+            echo -n "$dep $(_get_deps_all $dep "$2")" | tee "$dep_cache"
         fi
     done
-    echo $all_deps
 }
 
 function _get_missing() {
@@ -129,7 +131,7 @@ function _get_islands() {
     for o in $pkgs; do
         for dep in $(_get_deps "$o" "$installed_ini"); do
             if [[ " $pkgs " != *" $dep "* ]]; then
-                pkgs=$(_get_deps_recursive $dep "$pkgs" "$installed_ini")
+                pkgs=$(_get_deps_all $dep "$installed_ini")
             fi
         done
     done
@@ -182,7 +184,7 @@ while true; do
             exit 0;;
         -D|--dependencies-all)
             shift
-            _get_deps_recursive "$1" "" "$available_ini" | sed 's/ \+/\n/g' | grep -v "^$1$" | sort -u
+            _get_deps_all "$1" "$available_ini" | sed 's/ \+/\n/g' | grep -v "^$1$" | sort -u
             exit 0;;
         -n|--neededby)
             shift
@@ -231,7 +233,7 @@ while true; do
 			shift
 			base_pkgs="$(_get_base)"
 			for pkg in ${1//,/ }; do
-				pkgs="$pkgs $(_get_deps_recursive "$pkg" "$base_pkgs" "$installed_ini")"
+				pkgs="$pkgs $(_get_deps_all "$pkg" "$installed_ini")"
 			done
 			cmd_suffix+="-x $(echo "$base_pkgs $base_pkgs $pkgs" | sed 's/ \+/\n/g' | sort | uniq -u | paste -sd , )"
 			shift;;
