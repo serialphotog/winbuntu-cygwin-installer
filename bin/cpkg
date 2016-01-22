@@ -235,7 +235,7 @@ while true; do
 			for pkg in ${1//,/ }; do
 				pkgs="$pkgs $(_get_deps_all "$pkg" "$installed_ini")"
 			done
-			cmd_suffix+="-x $(echo "$base_pkgs $base_pkgs $pkgs" | sed 's/ \+/\n/g' | sort | uniq -u | paste -sd , )"
+			cmd_suffix+="-x $(echo "$base_pkgs $base_pkgs $pkgs" | sed 's/ \+/\n/g' | sort | uniq -u | paste -sd , ),$1 "
 			shift;;
 		--)
 			shift; break;;
