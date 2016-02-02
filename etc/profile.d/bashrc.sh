@@ -27,8 +27,6 @@ esac
 export EDITOR="nano"
 export BROWSER="windows-browser"
 export LESS="-erFX"
-#export TERM=gnome-256color
-export VIM=/usr/share/vim/
 
 PS2=" . \[\e[m\]"
 PROMPT_COMMAND='__default_ps1'
