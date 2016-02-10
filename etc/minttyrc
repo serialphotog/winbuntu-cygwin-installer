@@ -1,11 +1,11 @@
 BoldAsFont=no
 Transparency=low
-FontHeight=13
+FontHeight=14
 Font=Consolas
 Locale=en_US
 Charset=UTF-8
-Columns=80
-Rows=25
+Columns=96
+Rows=30
 Scrollbar=none
 FontSmoothing=full
 CopyOnSelect=no
