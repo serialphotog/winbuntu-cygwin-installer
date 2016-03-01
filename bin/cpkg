@@ -159,7 +159,7 @@ while true; do
 			exit 0;;
         -L|--listfiles)
             shift
-            cygcheck -l $1
+            cygcheck -l $1 | dos2unix
             exit $?;;
         -o|--owns)
             shift
