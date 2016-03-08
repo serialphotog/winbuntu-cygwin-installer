@@ -123,6 +123,10 @@ function top_level_pkgs() {
     rm $orphans_tmp
 }
 
+function reverse_dependencies_of() {
+    pkg_record "\\nrequires:.*\\s+$1\\s+.*version:" 0 "$2" | grep ^@ | awk -F\  '{print $2}' | sort -u
+}
+
 # help message
 function usage() {
     cat <<EOF
@@ -132,17 +136,18 @@ Usage:
 Options:
     -h, --help                      this help message
     -v, --verbose                   verbose output
-    -l, --list PACKAGE              list files in PACKAGE
-    -o, --owns FILE                 find package that owns FILE
-    -d, --deps PACKAGE              find dependencies of PACKAGE
-    -D, --deps-all PACKAGE          find dependencies of PACKAGE recursively
-    -m, --missing PACKAGE           find missing dependencies of PACKAGE recursively
+    -l, --list PACKAGE...           list files in PACKAGE
+    -o, --owns FILE...              find package that owns FILE
+    -d, --deps PACKAGE...           find dependencies of PACKAGE
+    -D, --deps-all PACKAGE...       find dependencies of PACKAGE recursively
+    -m, --missing PACKAGE...        find missing dependencies of PACKAGE recursively
+    -n, --needs PACKAGE...          list packages that depend on PACKAGE
     -t, --top                       list top-level (orphaned) packages
 EOF
 }
 
 # get command options
-OPTS=`getopt -n 'spm' -o h,v,l,o,d,D,m,t -l help,verbose,list,owns,deps,deps-all,missing,top -- "$@"`
+OPTS=`getopt -n 'spm' -o h,v,l,o,d,D,m,t,n -l help,verbose,list,owns,deps,deps-all,missing,top,needs -- "$@"`
 if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
 eval set -- "$OPTS"
 while true ; do
@@ -185,6 +190,10 @@ while true ; do
         args="$@"
         echo $found0 | sed -e 's/ \+/\n/g' | grep -ve "^${args// /\$\\|^}$" | sort -u
         break;;
+    -n|--needs)
+        shift 2
+        for pkg do reverse_dependencies_of "$pkg" "$installed"; done
+        break;;
     --) shift; break;;
      *) echo "Internal error!"; exit 1;;
     esac
@@ -199,7 +208,6 @@ done
 # n depends-installed (pkgs)
 # s search-installed (regex)
 # S search-available (regex)
-# t top-level
 # c clean-cache
 # w wait
 
