@@ -109,6 +109,20 @@ function recursive_missing_dependencies_of() {
     echo $found
 }
 
+function get_base() {
+    pkg_record "category:.*\s(Base|_PostInstallLast)" 0 "$installed" | grep ^@ | awk -F\  '{print $2}' | sort -u
+}
+
+function top_level_pkgs() {
+    installed_pkgs="$(get_installed | awk -F\  '{print $1}')"
+    base_pkgs="$(get_base)"
+    search_re="requires:.*\\s(${installed_pkgs//[[:space:]]/|})\\s*\\n*"
+    orphans_tmp=$(mktemp /tmp/cpkg.XXXXXX)
+    pkg_record "$search_re" 0 "$installed" | awk '/^requires:/{x=$0;sub(/^requires:\s*/,"",x);gsub(/\s/,"\n",x);print x}' | sort -u > $orphans_tmp
+    echo -e "$installed_pkgs\n$base_pkgs" | sort - $orphans_tmp | uniq -u
+    rm $orphans_tmp
+}
+
 # help message
 function usage() {
     cat <<EOF
@@ -123,11 +137,12 @@ Options:
     -d, --deps PACKAGE              find dependencies of PACKAGE
     -D, --deps-all PACKAGE          find dependencies of PACKAGE recursively
     -m, --missing PACKAGE           find missing dependencies of PACKAGE recursively
+    -t, --top                       list top-level (orphaned) packages
 EOF
 }
 
 # get command options
-OPTS=`getopt -n 'spm' -o h,v,l,o,d,D,m -l help,verbose,list,owns,deps,deps-all,missing -- "$@"`
+OPTS=`getopt -n 'spm' -o h,v,l,o,d,D,m,t -l help,verbose,list,owns,deps,deps-all,missing,top -- "$@"`
 if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
 eval set -- "$OPTS"
 while true ; do
@@ -158,6 +173,10 @@ while true ; do
         args="$@"
         echo $found0 | sed -e 's/ \+/\n/g' | grep -ve "^${args// /\$\\|^}$" | sort -u
         break;;
+    -t|--top)
+        shift 2
+        top_level_pkgs
+        break;;
     -m|--missing)
         shift 2
         for pkg; do
@@ -176,13 +195,11 @@ done
 # u update all
 # R remove-recursive (pkgs)
 # -----
-# d requires (pkgs)
-# D requires-recursive (pkgs)
-# m requires-not-installed (pkgs)
 # N depends-available (pkgs)
 # n depends-installed (pkgs)
 # s search-installed (regex)
 # S search-available (regex)
+# t top-level
 # c clean-cache
 # w wait
 
