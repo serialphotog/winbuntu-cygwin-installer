@@ -1,0 +1,189 @@
+#!/bin/bash
+
+installed_db="/etc/setup/installed.db"
+timestamp="/etc/setup/timestamp"
+setup_rc="/etc/setup/setup.rc"
+spm_cache="/var/cache/spm"
+available="$spm_cache/available"
+installed="$spm_cache/installed"
+
+# verbose output
+verbose=no
+function say() {
+    if [ "$verbose" = "yes" ]; then echo $1 >&2; fi
+}
+
+# list files in package
+function list() {
+    cygcheck -l "$1" | dos2unix
+}
+
+# find package that owns file
+function owns() {
+    ownz="$(cygcheck -f "$1" | sed -s 's/\n//g')"
+    [ -z "$ownz" ] && return 1
+    grep "$ownz" "$installed_db" | awk -F\  '{x=$2;sub(/\.tar.*$/,"",x);sub($1"-","",x);print $1}'
+}
+
+function is_installed() {
+    if [ -z "$(grep "^$1\s$1" "$installed_db")" ]; then
+        return 1
+    fi
+    return 0
+}
+
+function encode() {
+    echo $1 | sed -e 's/\//%2f/g' -e 's/:/%3a/g'
+}
+
+function get_installed() {
+    grep -v "INSTALLED.DB" $installed_db | awk -F\  '{x=$2;sub(/\.tar.*$/,"",x);sub($1"-","",x);print $1" "x}'
+}
+
+function get_setup() {
+    say "fetching setup for $2"
+    setup_ini="$1/$(encode $2)/x86_64/setup.ini"
+    if [ -e "$setup_ini" ]; then
+        cat "$setup_ini"
+    else
+        lynx -source $2/x86_64/setup.bz2 | bunzip2
+    fi
+}
+
+function get_setuprc_section() {
+    say "fetching setup.rc section $1"
+    section="$1"
+    awk -F"\t" "/^\t/{if (s==\"$section\") {print \$2}} /^\\S.*/{s=\$1}" $setup_rc
+}
+
+function generate_caches() {
+    if [ ! -e "$available" ] || [ "$timestamp" -nt "$available" ]; then
+        say "cache not found..regenerating"
+        mkdir -p "$spm_cache"
+        rm -f "$available"
+        last_cache="$(cygpath $(get_setuprc_section last-cache))"
+        for mirror in $(get_setuprc_section last-mirror); do
+            get_setup "$last_cache" "$mirror" | grep -v -e '^#' -e '^release' -e '^arch' -e '^setup-' -e '^install:' -e '^source:' >> "$available"
+        done
+        rm -f $installed
+        installed_pkgs="$(get_installed)"
+        reg1=${installed_pkgs// /$'\\n'.*version: }
+        pkg_record "^(${reg1//$'\n'/|})" 0 "$available" > $installed
+        say "finished generating"
+    fi
+}
+
+# pkg_record REGEX ICASE? TARGET
+function pkg_record() {
+    generate_caches
+    rs='\n@ '
+    awk "BEGIN { IGNORECASE=$2; RS=\"$rs\" } /$1/{ print \"$rs\"\$0}" "$3"
+}
+
+function dependencies_of() {
+    if is_installed $1; then
+        target="$installed"
+    else
+        target="$available"
+    fi
+    pkg_record "^$1\\n" 0 "$target" | grep "requires: " | sed -e 's/requires: //' -e 's/ \+/\n/g' | sort -u
+}
+
+function recursive_dependencies_of() {
+    found="$1 $2"
+    for dep in $(dependencies_of $1); do
+        if [[ " $found " != *" $dep "* ]]; then
+            found="$(recursive_dependencies_of "$dep" "$found")"
+        fi
+    done
+    echo $found
+}
+
+function recursive_missing_dependencies_of() {
+    found="$1 $2"
+    for dep in $(dependencies_of $1); do
+        if [[ " $found " != *" $dep "* ]] && ! is_installed $dep; then
+            found="$(recursive_missing_dependencies_of "$dep" "$found")"
+        fi
+    done
+    echo $found
+}
+
+# help message
+function usage() {
+    cat <<EOF
+Usage:
+    spm [OPTIONS]
+
+Options:
+    -h, --help                      this help message
+    -v, --verbose                   verbose output
+    -l, --list PACKAGE              list files in PACKAGE
+    -o, --owns FILE                 find package that owns FILE
+    -d, --deps PACKAGE              find dependencies of PACKAGE
+    -D, --deps-all PACKAGE          find dependencies of PACKAGE recursively
+    -m, --missing PACKAGE           find missing dependencies of PACKAGE recursively
+EOF
+}
+
+# get command options
+OPTS=`getopt -n 'spm' -o h,v,l,o,d,D,m -l help,verbose,list,owns,deps,deps-all,missing -- "$@"`
+if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
+eval set -- "$OPTS"
+while true ; do
+    case "$1" in
+    -h|--help)
+        usage
+        shift;;
+    -v|--verbose)
+        shift
+        verbose=yes;;
+    -l|--list)
+        shift 2
+        for pkg do list $pkg; done | sort -u
+        break;;
+    -o|--owns)
+        shift 2
+        for fil do owns $fil; done | sort -u
+        break;;
+    -d|--deps)
+        shift 2
+        for pkg do dependencies_of $pkg; done | sort -u
+        break;;
+    -D|--deps-all)
+        shift 2
+        for pkg; do
+            found0="$(recursive_dependencies_of "$pkg" "$found0")"
+        done
+        args="$@"
+        echo $found0 | sed -e 's/ \+/\n/g' | grep -ve "^${args// /\$\\|^}$" | sort -u
+        break;;
+    -m|--missing)
+        shift 2
+        for pkg; do
+            found0="$(recursive_missing_dependencies_of "$pkg" "$found0")"
+        done
+        args="$@"
+        echo $found0 | sed -e 's/ \+/\n/g' | grep -ve "^${args// /\$\\|^}$" | sort -u
+        break;;
+    --) shift; break;;
+     *) echo "Internal error!"; exit 1;;
+    esac
+done
+
+# i install (pkgs)
+# r remove (pkgs)
+# u update all
+# R remove-recursive (pkgs)
+# -----
+# d requires (pkgs)
+# D requires-recursive (pkgs)
+# m requires-not-installed (pkgs)
+# N depends-available (pkgs)
+# n depends-installed (pkgs)
+# s search-installed (regex)
+# S search-available (regex)
+# c clean-cache
+# w wait
+
+
