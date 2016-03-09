@@ -15,14 +15,18 @@ function say() {
 
 # list files in package
 function list() {
-    cygcheck -l "$1" | dos2unix
+    for pkg; do
+        cygcheck -l "$pkg" | dos2unix
+    done | sort -u
 }
 
 # find package that owns file
 function owns() {
-    ownz="$(cygcheck -f "$1" | sed -s 's/\n//g')"
-    [ -z "$ownz" ] && return 1
-    grep "$ownz" "$installed_db" | awk -F\  '{x=$2;sub(/\.tar.*$/,"",x);sub($1"-","",x);print $1}'
+    for $fil; do
+        ownz="$(cygcheck -f "$fil" | sed -s 's/\n//g')"
+        [ -z "$ownz" ] && return 1
+        grep "$ownz" "$installed_db" | awk -F\  '{x=$2;sub(/\.tar.*$/,"",x);sub($1"-","",x);print $1}'
+    done | sort -u
 }
 
 function is_installed() {
@@ -127,6 +131,16 @@ function reverse_dependencies_of() {
     pkg_record "\\nrequires:.*\\s+$1\\s+.*version:" 0 "$2" | grep ^@ | awk -F\  '{print $2}' | sort -u
 }
 
+function find_islands() {
+    tpkgs="$(top_level_pkgs) $(get_base)"
+    pkgs="$($0 -D $tpkgs)"
+    echo "$pkgs $tpkgs $(get_installed | awk -F\  '{print $1}')" | sed -e 's/ \+/\n/g' | sort | uniq -u
+}
+
+function user_search() {
+    pkg_record "^\\S*$1\\S*\\n|sdesc: \".*$1.*\"|ldesc: \".*$1.*\"" 1 "$available"
+}
+
 # help message
 function usage() {
     cat <<EOF
@@ -141,30 +155,36 @@ Options:
     -d, --deps PACKAGE...           find dependencies of PACKAGE
     -D, --deps-all PACKAGE...       find dependencies of PACKAGE recursively
     -m, --missing PACKAGE...        find missing dependencies of PACKAGE recursively
-    -n, --needs PACKAGE...          list packages that depend on PACKAGE
+    -n, --needs PACKAGE...          list installed packages that depend on PACKAGE
+    -N, --needs-all PACKAGE...      list available packages that depend on PACKAGE
     -t, --top                       list top-level (orphaned) packages
+    -I, --islands                   list package islands (circular dependency) [slow]
+    -s, --status REGEX              list installed packages where name matches regex
+    -S, --search REGEX              search available packages
+    -c, --clean                     clean package cache
+    -i, --install PACKAGE...        install packages
 EOF
 }
-
+cmd_suffix="-B "
 # get command options
-OPTS=`getopt -n 'spm' -o h,v,l,o,d,D,m,t,n -l help,verbose,list,owns,deps,deps-all,missing,top,needs -- "$@"`
+OPTS=`getopt -n 'spm' -o h,v,l,o,d,D,m,t,n,N,I,s,S,c,i -l help,verbose,list,owns,deps,deps-all,missing,top,needs,needs-all,islands,status,search,clean,install -- "$@"`
 if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
 eval set -- "$OPTS"
 while true ; do
     case "$1" in
     -h|--help)
         usage
-        shift;;
+        break;;
     -v|--verbose)
         shift
         verbose=yes;;
     -l|--list)
         shift 2
-        for pkg do list $pkg; done | sort -u
+        list $@
         break;;
     -o|--owns)
         shift 2
-        for fil do owns $fil; done | sort -u
+        owns $@
         break;;
     -d|--deps)
         shift 2
@@ -194,6 +214,31 @@ while true ; do
         shift 2
         for pkg do reverse_dependencies_of "$pkg" "$installed"; done
         break;;
+    -N|--needs-all)
+        shift 2
+        for pkg do reverse_dependencies_of "$pkg" "$available"; done
+        break;;
+    -I|--islands)
+        shift 2
+        find_islands
+        break;;
+    -S|--search)
+        shift 2
+        user_search $@
+        break;;
+    -s|--status)
+        shift 2
+        get_installed | awk -F\  '{print $1}' | grep -e "$1"
+        break;;
+    -c|--clean)
+        shift
+        rm $spm_cache -rf;;
+    -i|--install)
+        shift 2
+        args="$@"
+        cmd_suffix+="-P ${args// /,}"
+        do_cygsetup=1
+        break;;
     --) shift; break;;
      *) echo "Internal error!"; exit 1;;
     esac
@@ -203,12 +248,32 @@ done
 # r remove (pkgs)
 # u update all
 # R remove-recursive (pkgs)
-# -----
-# N depends-available (pkgs)
-# n depends-installed (pkgs)
-# s search-installed (regex)
-# S search-available (regex)
-# c clean-cache
+# M manual pkg selection
 # w wait
+# -----
+# c clean-cache
+[ -z "$do_cygsetup" ] && exit 0
+cygarch=$(uname -m)
+cygexe="setup-$cygarch.exe"
+cygurl="http://cygwin.com/$cygexe"
+base_cmd="$spm_cache/$cygexe -Ovqd -l $(cygpath -w $spm_cache) -R $(cygpath -w /) -a $cygarch \
+        -s http://sirius.starlig.ht/ -K http://sirius.starlig.ht/sirius.gpg \
+        -s http://cygwin.mirror.constant.com/ \
+        -s http://sourceware.mirrors.tds.net/pub/sourceware.org/cygwinports/ -K http://cygwinports.org/ports.gpg"
+mkdir -p $spm_cache
+cd $spm_cache
+if [ -e "/bin/wget" ]; then
+    # download setup.exe (if newer)
+    wget -nv -N $cygurl
+else
+    lynx -source $cygurl > $cygexe
+fi
+chmod +x $cygexe
+if [ -n "$isadmin" ]; then
+    chmod -R +wX /var/cache/rebase
+fi
 
+say "cygstart $start_args -- $cmd_prefix $base_cmd $cmd_suffix"
+
+cygstart $start_args -- $cmd_prefix $base_cmd $cmd_suffix
 
