@@ -22,7 +22,7 @@ function list() {
 
 # find package that owns file
 function owns() {
-    for $fil; do
+    for fil; do
         ownz="$(cygcheck -f "$fil" | sed -s 's/\n//g')"
         [ -z "$ownz" ] && return 1
         grep "$ownz" "$installed_db" | awk -F\  '{x=$2;sub(/\.tar.*$/,"",x);sub($1"-","",x);print $1}'
