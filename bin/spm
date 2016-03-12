@@ -163,11 +163,13 @@ Options:
     -S, --search REGEX              search available packages
     -c, --clean                     clean package cache
     -i, --install PACKAGE...        install packages
+    -r, --remove PACKAGE...         remove packages
+    -u, --update                    update installed packages
 EOF
 }
 cmd_suffix="-B "
 # get command options
-OPTS=`getopt -n 'spm' -o h,v,l,o,d,D,m,t,n,N,I,s,S,c,i -l help,verbose,list,owns,deps,deps-all,missing,top,needs,needs-all,islands,status,search,clean,install -- "$@"`
+OPTS=`getopt -n 'spm' -o h,v,l,o,d,D,m,t,n,N,I,s,S,c,i,r,u -l help,verbose,list,owns,deps,deps-all,missing,top,needs,needs-all,islands,status,search,clean,install,remove,update -- "$@"`
 if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
 eval set -- "$OPTS"
 while true ; do
@@ -236,7 +238,18 @@ while true ; do
     -i|--install)
         shift 2
         args="$@"
-        cmd_suffix+="-P ${args// /,}"
+        cmd_suffix+="-P ${args// /,} "
+        do_cygsetup=1
+        break;;
+    -r|--remove)
+        shift 2
+        args="$@"
+        cmd_suffix+="-x ${args// /,} "
+        do_cygsetup=1
+        break;;
+    -u|--update)
+        shift
+        cmd_suffix+="-g "
         do_cygsetup=1
         break;;
     --) shift; break;;
@@ -244,14 +257,10 @@ while true ; do
     esac
 done
 
-# i install (pkgs)
-# r remove (pkgs)
 # u update all
 # R remove-recursive (pkgs)
 # M manual pkg selection
 # w wait
-# -----
-# c clean-cache
 [ -z "$do_cygsetup" ] && exit 0
 cygarch=$(uname -m)
 cygexe="setup-$cygarch.exe"
