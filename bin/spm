@@ -164,12 +164,15 @@ Options:
     -c, --clean                     clean package cache
     -i, --install PACKAGE...        install packages
     -r, --remove PACKAGE...         remove packages
+    -R, --remove-all PACKAGE...     remove packages recursively
     -u, --update                    update installed packages
+    -w, --wait                      wait for package install/remove to finish
+    -M, --manager                   open cygwin package selector before continuing
 EOF
 }
 cmd_suffix="-B "
 # get command options
-OPTS=`getopt -n 'spm' -o h,v,l,o,d,D,m,t,n,N,I,s,S,c,i,r,u -l help,verbose,list,owns,deps,deps-all,missing,top,needs,needs-all,islands,status,search,clean,install,remove,update -- "$@"`
+OPTS=`getopt -n 'spm' -o h,v,l,o,d,D,m,t,n,N,I,s,S,c,i,r,u,R,w,M -l help,verbose,list,owns,deps,deps-all,missing,top,needs,needs-all,islands,status,search,clean,install,remove,update,remove-all,wait,manager -- "$@"`
 if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
 eval set -- "$OPTS"
 while true ; do
@@ -234,7 +237,7 @@ while true ; do
         break;;
     -c|--clean)
         shift
-        rm $spm_cache -rf;;
+        find $spm_cache -type d -name 'release' | xargs rm -r 2>/dev/null;;
     -i|--install)
         shift 2
         args="$@"
@@ -250,17 +253,34 @@ while true ; do
     -u|--update)
         shift
         cmd_suffix+="-g "
+        do_cygsetup=1;;
+    -R|--remove-all)
+        shift 2
+        args="$@"
+        for pkg; do
+            needed="$(spm -n $pkg)"
+            if [ -n "$needed" ]; then
+                echo -e "$pkg needed by:\n$needed"
+                exit 1
+            fi
+        done
+        bpkgs="$(get_base)"
+        pkgs="$(spm -D $args | grep -v "^${bpkgs//$'\n'/\$\\|^}$")"
+        cmd_suffix+="-x ${args// /,},${pkgs//$'\n'/,} "
         do_cygsetup=1
         break;;
+    -w|--wait)
+        shift
+        cmd_suffix+="-W "
+        start_args+="-w ";;
+    -M|--manager)
+        shift
+        cmd_suffix+="-M ";;
     --) shift; break;;
      *) echo "Internal error!"; exit 1;;
     esac
 done
 
-# u update all
-# R remove-recursive (pkgs)
-# M manual pkg selection
-# w wait
 [ -z "$do_cygsetup" ] && exit 0
 cygarch=$(uname -m)
 cygexe="setup-$cygarch.exe"
