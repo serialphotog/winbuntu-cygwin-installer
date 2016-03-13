@@ -121,7 +121,7 @@ function top_level_pkgs() {
     installed_pkgs="$(get_installed | awk -F\  '{print $1}')"
     base_pkgs="$(get_base)"
     search_re="requires:.*\\s(${installed_pkgs//[[:space:]]/|})\\s*\\n*"
-    orphans_tmp=$(mktemp /tmp/cpkg.XXXXXX)
+    orphans_tmp=$(mktemp /tmp/spm.XXXXXX)
     pkg_record "$search_re" 0 "$installed" | awk '/^requires:/{x=$0;sub(/^requires:\s*/,"",x);gsub(/\s/,"\n",x);print x}' | sort -u > $orphans_tmp
     echo -e "$installed_pkgs\n$base_pkgs" | sort - $orphans_tmp | uniq -u
     rm $orphans_tmp

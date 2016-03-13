@@ -28,7 +28,7 @@ SectionEnd
 
 Function DoSetup
   # download directory
-  StrCpy $2 "$INSTDIR\var\cache\cpkg"
+  StrCpy $2 "$INSTDIR\var\cache\spm"
   CreateDirectory $2
   # executable filename (downloaded)
   StrCpy $0 "$2\setup-x86_64.exe"
