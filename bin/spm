@@ -145,26 +145,24 @@ function user_search() {
 function usage() {
     cat <<EOF
 Usage:
-    spm [OPTIONS]
-
+    spm [OPTIONS] [PACKAGE[ PACKAGE...]]
 Options:
     -h, --help                      this help message
-    -v, --verbose                   verbose output
-    -l, --list PACKAGE...           list files in PACKAGE
+    -l, --list PACKAGE...           list files in PACKAGE(s)
     -o, --owns FILE...              find package that owns FILE
-    -d, --deps PACKAGE...           find dependencies of PACKAGE
-    -D, --deps-all PACKAGE...       find dependencies of PACKAGE recursively
-    -m, --missing PACKAGE...        find missing dependencies of PACKAGE recursively
-    -n, --needs PACKAGE...          list installed packages that depend on PACKAGE
-    -N, --needs-all PACKAGE...      list available packages that depend on PACKAGE
+    -d, --deps PACKAGE...           find dependencies of PACKAGE(s)
+    -D, --deps-all PACKAGE...       find dependencies of PACKAGE(s) recursively
+    -m, --missing PACKAGE...        find missing dependencies of PACKAGE(s) recursively
+    -n, --needs PACKAGE...          list installed packages that depend on PACKAGE(s)
+    -N, --needs-all PACKAGE...      list available packages that depend on PACKAGE(s)
     -t, --top                       list top-level (orphaned) packages
     -I, --islands                   list package islands (circular dependency) [slow]
     -s, --status REGEX              list installed packages where name matches regex
     -S, --search REGEX              search available packages
     -c, --clean                     clean package cache
-    -i, --install PACKAGE...        install packages
-    -r, --remove PACKAGE...         remove packages
-    -R, --remove-all PACKAGE...     remove packages recursively
+    -i, --install PACKAGE...        install PACKAGE(s)
+    -r, --remove PACKAGE...         remove PACKAGE(s)
+    -R, --remove-all PACKAGE...     remove PACKAGE(s) recursively
     -u, --update                    update installed packages
     -w, --wait                      wait for package install/remove to finish
     -M, --manager                   open cygwin package selector before continuing
@@ -217,11 +215,11 @@ while true ; do
         break;;
     -n|--needs)
         shift 2
-        for pkg do reverse_dependencies_of "$pkg" "$installed"; done
+        for pkg do reverse_dependencies_of "$pkg" "$installed"; done | sort -u
         break;;
     -N|--needs-all)
         shift 2
-        for pkg do reverse_dependencies_of "$pkg" "$available"; done
+        for pkg do reverse_dependencies_of "$pkg" "$available"; done | sort -u
         break;;
     -I|--islands)
         shift 2
