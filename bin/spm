@@ -70,8 +70,9 @@ function generate_caches() {
             get_setup "$last_cache" "$mirror" | grep -v -e '^#' -e '^release' -e '^arch' -e '^setup-' -e '^install:' -e '^source:' >> "$available"
         done
         rm -f $installed
-        installed_pkgs="$(get_installed)"
+        installed_pkgs="$(get_installed | sed 's/\+/\\+/g')"
         reg1=${installed_pkgs// /$'\\n'.*version: }
+        echo "^(${reg1//$'\n'/|})" >&2
         pkg_record "^(${reg1//$'\n'/|})" 0 "$available" > $installed
         say "finished generating"
     fi
