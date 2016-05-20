@@ -60,6 +60,12 @@ function get_setuprc_section() {
     awk -F"\t" "/^\t/{if (s==\"$section\") {print \$2}} /^\\S.*/{s=\$1}" $setup_rc
 }
 
+for mirror in $(get_setuprc_section last-mirror); do
+    if [[ "$mirror" != *"sirius.starlig.ht"* ]] && [[ "$mirror" != *"cygwinports"* ]]; then
+        main_mirror="$mirror"
+    fi
+done
+
 function generate_caches() {
     if [ ! -e "$available" ] || [ "$timestamp" -nt "$available" ]; then
         say "cache not found..regenerating"
@@ -166,11 +172,12 @@ Options:
     -u, --update                    update installed packages
     -w, --wait                      wait for package install/remove to finish
     -M, --manager                   open cygwin package selector before continuing
+    -C, --change-mirror http://...  change the main cygwin package mirror
 EOF
 }
 cmd_suffix="-B "
 # get command options
-OPTS=`getopt -n 'spm' -o h,v,l,o,d,D,m,t,n,N,I,s,S,c,i,r,u,R,w,M -l help,verbose,list,owns,deps,deps-all,missing,top,needs,needs-all,islands,status,search,clean,install,remove,update,remove-all,wait,manager -- "$@"`
+OPTS=`getopt -n 'spm' -o h,v,l,o,d,D,m,t,n,N,I,s,S,c,i,r,u,R,w,M,C -l help,verbose,list,owns,deps,deps-all,missing,top,needs,needs-all,islands,status,search,clean,install,remove,update,remove-all,wait,manager,change-mirror -- "$@"`
 if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
 eval set -- "$OPTS"
 while true ; do
@@ -271,6 +278,11 @@ while true ; do
         shift
         cmd_suffix+="-W "
         start_args+="-w ";;
+    -C|--change-mirror)
+        shift 2
+        main_mirror="$1"
+        do_cygsetup=1
+        break;;
     -M|--manager)
         shift
         cmd_suffix+="-M ";;
@@ -284,8 +296,8 @@ cygarch=$(uname -m)
 cygexe="setup-$cygarch.exe"
 cygurl="http://cygwin.com/$cygexe"
 base_cmd="$spm_cache/$cygexe -Ovqd -l $(cygpath -w $spm_cache) -R $(cygpath -w /) -a $cygarch \
+        -s $main_mirror \
         -s http://sirius.starlig.ht/ -K http://sirius.starlig.ht/sirius.gpg \
-        -s http://cygwin.mirror.constant.com/ \
         -s http://sourceware.mirrors.tds.net/pub/sourceware.org/cygwinports/ -K http://cygwinports.org/ports.gpg"
 mkdir -p $spm_cache
 cd $spm_cache
