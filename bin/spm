@@ -242,7 +242,11 @@ while true ; do
         break;;
     -c|--clean)
         shift
-        find $spm_cache -type d -name 'release' | xargs rm -r 2>/dev/null;;
+        cd $spm_cache
+        for i in $(find . -maxdepth 1 -type d -name '??*'); do 
+            rm -r $i
+        done
+        break;;
     -i|--install)
         shift 2
         args="$@"
