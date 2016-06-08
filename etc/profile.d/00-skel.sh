@@ -1,6 +1,6 @@
 #!/bin/bash
 
-[ -z "$SKEL_FINISHED" ] && [ "$SHLVL" = "1" ] || return
+[ -z "$SKEL_FINISHED" ] || return
 
 # use windows shortcuts as symlinks
 export CYGWIN="${CYGWIN}${CYGWIN:+ }winsymlinks"
@@ -17,4 +17,4 @@ for bone in `find /etc/skel -type f -printf "%P\n"`; do
     fi
 done
 
-SKEL_FINISHED=1
+export SKEL_FINISHED=1
