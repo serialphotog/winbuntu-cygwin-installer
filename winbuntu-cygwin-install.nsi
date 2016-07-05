@@ -51,7 +51,7 @@ Function DoSetup
     # lux-minimal package, download & install locations, etc.)
     ExecWait '"$0" -vgBqO -l "$2" -R "$INSTDIR" \
     -s http://cygwin.mirror.constant.com/ \
-    -P xorg-server xinit'
+    -P xorg-server'
 
 FunctionEnd
 
